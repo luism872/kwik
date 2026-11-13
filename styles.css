@@ -1095,13 +1095,22 @@ ol, ul { list-style: none; }
 }
 
 /* ===== Coupon image & step dots ===== */
-.coupon-img {
+.coupon-picture {
   display: block;
   margin: 1rem auto 0;
   width: 100%;
   max-width: 20rem;
+}
+.coupon-img {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 20rem;
+  height: auto;
+  aspect-ratio: 1023 / 1537;
   border-radius: 1rem;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  content-visibility: auto;
 }
 
 .coupon-fallback {

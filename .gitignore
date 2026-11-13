@@ -1,0 +1,7 @@
+node_modules/
+images_orig/
+convert-to-webp.js
+optimize-images.ps1
+test-optimized.jpg
+.DS_Store
+Thumbs.db

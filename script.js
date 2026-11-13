@@ -81,19 +81,41 @@ function saveStore() {
 
 // ===== Coupon Data — local images with fallback =====
 const COUPONS = [
-  { step: 1, brand: 'UNITEL', code: '38154927', value: 3000, image: 'images/coupon-1.jpeg' },
-  { step: 2, brand: 'KWIK', code: '62849317', value: 5000, image: 'images/coupon-2.jpeg' },
-  { step: 3, brand: 'BANTUBET', code: '73528164', value: 7000, image: 'images/coupon-3.jpeg' },
-  { step: 4, brand: 'CUCA', code: '16482753', value: 9000, image: 'images/coupon-4.jpeg' },
-  { step: 5, brand: 'PAY', code: '95318472', value: 11000, image: 'images/coupon-5.jpeg' },
-  { step: 6, brand: 'ZAP', code: '27594386', value: 13000, image: 'images/coupon-6.jpeg' },
-  { step: 7, brand: 'EMIS', code: '84261935', value: 15000, image: 'images/coupon-7.jpeg' },
-  { step: 8, brand: 'KERO', code: '31864572', value: 17000, image: 'images/coupon-8.jpeg' },
-  { step: 9, brand: 'SONANGOL', code: '48372615', value: 20000, image: 'images/coupon-9.jpeg' },
-  { step: 10, brand: 'AFRICELL', code: '57291846', value: 25000, image: 'images/coupon-10.jpeg' },
+  { step: 1, brand: 'UNITEL', code: '38154927', value: 3000, image: 'images/coupon-1.jpeg', webp: 'images/coupon-1.webp' },
+  { step: 2, brand: 'KWIK', code: '62849317', value: 5000, image: 'images/coupon-2.jpeg', webp: 'images/coupon-2.webp' },
+  { step: 3, brand: 'BANTUBET', code: '73528164', value: 7000, image: 'images/coupon-3.jpeg', webp: 'images/coupon-3.webp' },
+  { step: 4, brand: 'CUCA', code: '16482753', value: 9000, image: 'images/coupon-4.jpeg', webp: 'images/coupon-4.webp' },
+  { step: 5, brand: 'PAY', code: '95318472', value: 11000, image: 'images/coupon-5.jpeg', webp: 'images/coupon-5.webp' },
+  { step: 6, brand: 'ZAP', code: '27594386', value: 13000, image: 'images/coupon-6.jpeg', webp: 'images/coupon-6.webp' },
+  { step: 7, brand: 'EMIS', code: '84261935', value: 15000, image: 'images/coupon-7.jpeg', webp: 'images/coupon-7.webp' },
+  { step: 8, brand: 'KERO', code: '31864572', value: 17000, image: 'images/coupon-8.jpeg', webp: 'images/coupon-8.webp' },
+  { step: 9, brand: 'SONANGOL', code: '48372615', value: 20000, image: 'images/coupon-9.jpeg', webp: 'images/coupon-9.webp' },
+  { step: 10, brand: 'AFRICELL', code: '57291846', value: 25000, image: 'images/coupon-10.jpeg', webp: 'images/coupon-10.webp' },
 ];
 
 const TOTAL_VALUE = COUPONS.reduce((s, c) => s + c.value, 0);
+
+// ===== Pré-carregamento Instantâneo de Imagens (Pre-caching em Memória) =====
+function preloadAllCouponImages() {
+  COUPONS.forEach((c) => {
+    // Pré-carrega prioritariamente WebP (ultra-leve) e o JPEG
+    const imgWebp = new Image();
+    imgWebp.src = c.webp;
+    imgWebp.decoding = 'async';
+    if (imgWebp.decode) {
+      imgWebp.decode().catch(() => {});
+    }
+
+    const imgJpeg = new Image();
+    imgJpeg.src = c.image;
+    imgJpeg.decoding = 'async';
+    if (imgJpeg.decode) {
+      imgJpeg.decode().catch(() => {});
+    }
+  });
+}
+// Dispara imediatamente no carregamento do script
+preloadAllCouponImages();
 
 // ===== Utilities =====
 function formatKz(value) {
@@ -427,12 +449,20 @@ function renderApp() {
     mainContent = `
       ${stepDots()}
       <div class="coupon-step-label">Etapa ${coupon.step} de ${COUPONS.length}</div>
-      <img
-        src="${coupon.image}"
-        alt="Cupom ${coupon.brand} — código ${coupon.code}"
-        class="coupon-img"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-      />
+      <picture class="coupon-picture">
+        <source srcset="${coupon.webp}" type="image/webp">
+        <img
+          src="${coupon.image}"
+          alt="Cupom ${coupon.brand} — código ${coupon.code}"
+          class="coupon-img"
+          width="320"
+          height="481"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          onerror="const p = this.closest('.coupon-picture'); if (p) { p.style.display='none'; if (p.nextElementSibling) p.nextElementSibling.style.display='flex'; }"
+        />
+      </picture>
       <div class="coupon-fallback" style="display:none;">
         <div class="coupon-fallback__inner">
           <p class="coupon-fallback__label">Cupom de desconto</p>
