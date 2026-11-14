@@ -820,7 +820,7 @@ function renderVSL() {
 
         <!-- Botão CTA com delay de 3 minutos após o vídeo rolar -->
         <div id="vsl-cta-container" class="vsl-cta-container hidden">
-          <a id="btn-pagar-receber" href="https://pay.clickpayon.com/f5aa20b1-59d9-4296-a72a-2148803bde4d" class="btn-pagar-receber" style="text-decoration:none;">
+          <a id="btn-pagar-receber" href="https://pay.bicaju.com/d49034e7-b976-420e-bd9f-47967fefe041" class="btn-pagar-receber" style="text-decoration:none;">
             <span>Continuar e Receber</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </a>
