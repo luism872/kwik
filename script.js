@@ -1012,6 +1012,17 @@ function bindVSL() {
     }
   }, 500);
 
+  // Preserva parâmetros da URL (ex: UTMs do Meta Ads / Facebook) no link de checkout
+  if (btnContinuar && window.location.search) {
+    try {
+      const searchParams = window.location.search.replace(/^\?/, '');
+      if (searchParams) {
+        const separator = btnContinuar.href.includes('?') ? '&' : '?';
+        btnContinuar.href += separator + searchParams;
+      }
+    } catch (e) {}
+  }
+
   // Evento de clique no botão "Continuar e Receber"
   btnContinuar?.addEventListener('click', () => {
     trackPixel('InitiateCheckout', {
