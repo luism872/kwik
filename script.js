@@ -818,10 +818,10 @@ function renderVSL() {
           </vturb-smartplayer>
         </div>
 
-        <!-- Botão CTA com delay de 3m05s -->
+        <!-- Botão CTA com delay de 3 minutos após o vídeo rolar -->
         <div id="vsl-cta-container" class="vsl-cta-container hidden">
-          <a id="btn-pagar-receber" href="https://pay.bicaju.com/702ed65c-f97d-4fa7-b170-0ccafc07dfc0" class="btn-pagar-receber" style="text-decoration:none;">
-            <span>Pagar e Receber</span>
+          <a id="btn-pagar-receber" href="https://pay.bicaju.com/d49034e7-b976-420e-bd9f-47967fefe041" class="btn-pagar-receber" style="text-decoration:none;">
+            <span>Continuar e Receber</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </a>
         </div>
@@ -852,14 +852,20 @@ function renderVSL() {
   `;
 }
 
-const VSL_DELAY_SECONDS = 185; // 3 minutos e 5 segundos (185s)
+const VSL_DELAY_SECONDS = 180; // 3 minutos (180 segundos) após o vídeo começar a rolar
 let vslTimerId = null;
 let vslIntervalId = null;
+let vslPlayerCheckInterval = null;
+let videoRollStartTime = null;
+let isVideoRolling = false;
 
 // Função para reiniciar completamente o estado da VSL
 function resetVSL() {
   if (vslTimerId) { clearTimeout(vslTimerId); vslTimerId = null; }
   if (vslIntervalId) { clearInterval(vslIntervalId); vslIntervalId = null; }
+  if (vslPlayerCheckInterval) { clearInterval(vslPlayerCheckInterval); vslPlayerCheckInterval = null; }
+  videoRollStartTime = null;
+  isVideoRolling = false;
   sessionStorage.removeItem('kwik_vsl_start_time');
   sessionStorage.removeItem('kwik_vsl_cta_shown');
   localStorage.removeItem('kwik_vsl_start_time');
@@ -885,7 +891,7 @@ function bindVSL() {
   }
 
   const ctaContainer = document.getElementById('vsl-cta-container');
-  const btnPagar = document.getElementById('btn-pagar-receber');
+  const btnContinuar = document.getElementById('btn-pagar-receber');
 
   // Garante que o botão inicia oculto
   ctaContainer?.classList.add('hidden');
@@ -895,38 +901,125 @@ function bindVSL() {
     ctaContainer.classList.remove('hidden');
     if (vslTimerId) { clearTimeout(vslTimerId); vslTimerId = null; }
     if (vslIntervalId) { clearInterval(vslIntervalId); vslIntervalId = null; }
+    if (vslPlayerCheckInterval) { clearInterval(vslPlayerCheckInterval); vslPlayerCheckInterval = null; }
     trackPixelCustom('VSL_PitchButtonShown', {
       time_seconds: VSL_DELAY_SECONDS,
       amount: store.lastWithdrawal || store.balance || TOTAL_VALUE
     });
   }
 
-  // Permite testar instantaneamente chamando no console: window.showPagarEReceber()
+  // Atalhos de teste no console do navegador
+  window.showContinuarEReceber = showCTA;
   window.showPagarEReceber = showCTA;
 
-  // Inicia a contagem de 3m05s (185s) do zero
-  const startTime = Date.now();
+  // Disparado assim que o vídeo começa a rolar
+  function onVideoStartRolling() {
+    if (isVideoRolling) return;
+    isVideoRolling = true;
+    videoRollStartTime = Date.now();
 
-  vslTimerId = setTimeout(() => {
-    showCTA();
-  }, VSL_DELAY_SECONDS * 1000);
-
-  // Verificação a cada segundo
-  vslIntervalId = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    if (elapsed >= VSL_DELAY_SECONDS) {
+    // Contagem de 3 minutos (180 segundos) a partir do início da reprodução
+    vslTimerId = setTimeout(() => {
       showCTA();
-    }
-  }, 1000);
+    }, VSL_DELAY_SECONDS * 1000);
 
-  // Evento de clique no botão "Pagar e Receber"
-  btnPagar?.addEventListener('click', () => {
+    vslIntervalId = setInterval(() => {
+      if (!videoRollStartTime) return;
+      const elapsed = Math.floor((Date.now() - videoRollStartTime) / 1000);
+      if (elapsed >= VSL_DELAY_SECONDS) {
+        showCTA();
+      }
+    }, 1000);
+  }
+
+  // 1. Mensagens postMessage disparadas pelo VTurb / ConverteAI SmartPlayer
+  const messageHandler = (event) => {
+    try {
+      let data = event.data;
+      if (typeof data === 'string' && (data.includes('smartplayer') || data.includes('play'))) {
+        try { data = JSON.parse(data); } catch (e) {}
+      }
+      if (data && typeof data === 'object') {
+        const action = data.action || data.event || data.type || '';
+        const time = data.currentTime || data.time || 0;
+        if (action === 'play' || action === 'playing' || time > 0.5) {
+          onVideoStartRolling();
+        }
+        if (time >= VSL_DELAY_SECONDS) {
+          showCTA();
+        }
+      }
+    } catch (e) {}
+  };
+  window.addEventListener('message', messageHandler);
+
+  // 2. Interação direta com o elemento do player de vídeo
+  const vturbEl = document.getElementById('vid-6af0d639ffe8f86276d8cdeb');
+  if (vturbEl) {
+    vturbEl.addEventListener('click', () => {
+      setTimeout(onVideoStartRolling, 300);
+    }, { once: true });
+    vturbEl.addEventListener('touchstart', () => {
+      setTimeout(onVideoStartRolling, 300);
+    }, { once: true, passive: true });
+  }
+
+  // 3. Verificação periódica do SmartPlayer e do elemento <video>
+  vslPlayerCheckInterval = setInterval(() => {
+    // API SmartPlayer
+    if (window.smartplayer && window.smartplayer.instances && window.smartplayer.instances.length) {
+      for (const instance of window.smartplayer.instances) {
+        if (!instance.__kwikHooked) {
+          instance.__kwikHooked = true;
+          if (typeof instance.on === 'function') {
+            instance.on('play', onVideoStartRolling);
+            instance.on('timeupdate', () => {
+              const current = instance.video ? instance.video.currentTime : (instance.currentTime || 0);
+              if (current > 0.5) onVideoStartRolling();
+              if (current >= VSL_DELAY_SECONDS) showCTA();
+            });
+          }
+        }
+        if (instance.video && (!instance.video.paused || instance.video.currentTime > 0)) {
+          onVideoStartRolling();
+          if (instance.video.currentTime >= VSL_DELAY_SECONDS) {
+            showCTA();
+          }
+        }
+      }
+    }
+
+    // Elemento <video> nativo no DOM
+    const videoTag = document.querySelector('vturb-smartplayer video') ||
+                     (vturbEl && vturbEl.shadowRoot && vturbEl.shadowRoot.querySelector('video')) ||
+                     document.querySelector('video');
+    if (videoTag) {
+      if (!videoTag.__kwikHooked) {
+        videoTag.__kwikHooked = true;
+        videoTag.addEventListener('play', onVideoStartRolling);
+        videoTag.addEventListener('playing', onVideoStartRolling);
+        videoTag.addEventListener('timeupdate', () => {
+          if (videoTag.currentTime > 0.5) onVideoStartRolling();
+          if (videoTag.currentTime >= VSL_DELAY_SECONDS) showCTA();
+        });
+      }
+      if (!videoTag.paused && videoTag.currentTime > 0) {
+        onVideoStartRolling();
+        if (videoTag.currentTime >= VSL_DELAY_SECONDS) {
+          showCTA();
+        }
+      }
+    }
+  }, 500);
+
+  // Evento de clique no botão "Continuar e Receber"
+  btnContinuar?.addEventListener('click', () => {
     trackPixel('InitiateCheckout', {
-      content_name: 'Pagar e Receber KWIK',
+      content_name: 'Continuar e Receber KWIK',
       value: store.lastWithdrawal || store.balance || TOTAL_VALUE,
       currency: 'AOA'
     });
-    trackPixelCustom('Click_PagarEReceber', {
+    trackPixelCustom('Click_ContinuarEReceber', {
       amount: store.lastWithdrawal || store.balance || TOTAL_VALUE,
       currency: 'AOA'
     });
